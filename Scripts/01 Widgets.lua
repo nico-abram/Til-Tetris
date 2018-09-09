@@ -27,6 +27,7 @@ Widg.defaults.label = {
 	name = "Common Normal",
 	width = false,
 	color = color("#FFFFFF"),
+	halign = 0.5,
 	onInit = false
 }
 Widg.Label = function(params)
@@ -34,7 +35,7 @@ Widg.Label = function(params)
 	params.color = checkColor(params.color)
 	return LoadFont(params.name) .. {
 		InitCommand=function(self)
-			self:xy(params.x, params.y):zoom(params.scale)
+			self:xy(params.x, params.y):zoom(params.scale):halign(params.halign)
 			if width then
 				self:maxwidth(params.width)
 			end
@@ -56,13 +57,14 @@ Widg.defaults.rectangle = {
 	onInit = false,
 	alpha = 1.0,
 	halign = 0.5,
+	valign = 0.5,
 }
 Widg.Rectangle = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.rectangle)
 	params.color = checkColor(params.color)
 	return Def.Quad {
 			InitCommand=function(self)
-				self:xy(params.x + params.width/2,params.y + params.height/2):zoomto(params.width,params.height):diffusealpha(params.alpha):halign(params.halign)
+				self:xy(params.x + params.width/2,params.y + params.height/2):zoomto(params.width,params.height):diffusealpha(params.alpha):halign(params.halign):valign(params.valign)
 				if params.onInit then params.onInit(self) end
 			end;
 			OnCommand=function(self)
@@ -85,7 +87,6 @@ Widg.defaults.borders = {
 	height = 100,
 	borderWidth = 10,
 	onInit =false,
-	valign = 0,
 	alpha = 1.0,
 }
 Widg.Borders = function(params)
@@ -93,7 +94,7 @@ Widg.Borders = function(params)
 	params.color = checkColor(params.color)
 	return Def.ActorFrame {
 		InitCommand=function(self)
-			self:xy(params.x,params.y):valign(params.valign)
+			self:xy(params.x,params.y)
 			if params.onInit then params.onInit(self) end
 		end,
 		--4 border quads
@@ -136,9 +137,10 @@ Widg.defaults.button = {
 		padding = {
 			x = 10,
 			y = 10,
-			halign = 0.5
 		}
 	},
+	halign = 1,
+	valign = 1,
 }
 Widg.Button = function(params, data)
 	fillNilTableFieldsFrom(params, Widg.defaults.button)
@@ -147,13 +149,15 @@ Widg.Button = function(params, data)
 	params.font.color = checkColor(params.font.color)
 	params.border.color = checkColor(params.border.color)
 	local rect = Widg.Rectangle {
-		x = params.y,
-		y = params.x,
+		x = params.x,
+		y = params.y,
 		width = params.width,
 		height = params.height,
 		color = params.bgColor,
 		alpha = params.alpha,
 		onClick = params.onClick and function(s) params.onClick(s,data) end or false,
+		halign = params.halign,
+		valign = params.valign,
 	}
 	rect.HighlightCommand=function(self)
 		if isOver(self) then
@@ -166,8 +170,8 @@ Widg.Button = function(params, data)
 		end
 	end
 	local borders = Widg.Borders {
-		x = params.y,
-		y = params.x,
+		y = params.y+params.height*(0.5-params.valign),
+		x = params.x+params.width*(0.5-params.halign),
 		color = params.border.color,
 		width = params.width,
 		height = params.height,
@@ -180,7 +184,7 @@ Widg.Button = function(params, data)
 			self.params = params 
 		end,
 		rect,
-		Widg.Label {x=params.x+params.width/2,y=params.y+params.height/2,scale=params.font.scale,halign=params.font.halign,text=params.text,width=params.width-params.font.padding.x},
+		Widg.Label {x=params.x+params.width*(1-params.halign),y=params.y+params.height*(1-params.valign),scale=params.font.scale,halign=params.font.halign,text=params.text,width=params.width-params.font.padding.x},
 		borders
 	}
 end
@@ -188,7 +192,7 @@ end
 Widg.defaults.sprite = {
 	x = 0,
 	y = 0,
-	color = color("#FFFFFF"),
+	color = false,
 	onInit = false,
 	texture = false,
 }
@@ -199,7 +203,8 @@ Widg.Sprite = function(params)
 		_Level = 1,
 		Texture = path,
 		InitCommand = function(self)
-			self:xy(params.x,params.y):diffuse(params.color)
+			self:xy(params.x,params.y)
+			if params.color then self:diffuse(params.color) end
 			if params.onInit then params.onInit(self) end
 		end
 	}
@@ -224,7 +229,13 @@ Widg.Container = function(params)
 	container.add = function(container, item)
 		container[#container+1] = item
 	end
-	if params.content then container[#container+1] = content end
+	if params.content then
+		if params.content.class then
+			container[#container+1] = params.content
+		else
+			container[#container+1] = Def.ActorFrame(params.content)
+		end
+	end
 	return container
 end
 

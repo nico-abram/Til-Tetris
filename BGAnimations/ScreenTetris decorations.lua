@@ -515,4 +515,14 @@ holdPieceGrid.RedrawHoldPieceMessageCommand = function(self)
 	end
 end
 
-return Def.ActorFrame {gridActor, hintActors, holdPieceGrid}
+
+local menu = Widg.Container {
+	x=0,
+	y=0, 
+	content = {
+		Widg.Button {halign=0.4,y=150,width=200,height=40,text="Back", onClick=screenChange("ScreenTetrisMenu")},
+		Widg.Button {halign=0.4,y=100,width=200,height=40,text="Restart", onClick=screenChange("ScreenTetris")}
+	}
+}
+
+return Def.ActorFrame {gridActor, hintActors, holdPieceGrid, menu}
