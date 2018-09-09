@@ -42,9 +42,9 @@ local config = {
 		hold = "c",
 	},
 	bgColor = color("#333333CC"),
-	normalSpeed = 2,
-	highSpeed = 0.02,
-	inputPollingSeconds = 0,
+	normalSpeed = 0.5,
+	highSpeed = 0.025,
+	inputPollingSeconds = 0.25,
 	hints = {
 		num = 5,
 		x = SCREEN_WIDTH/2+100,
@@ -253,62 +253,41 @@ function buttonForEvent(event)
 end
 
 local lastInputs = {}
-function buttonPress(button)
+local pressedKeys = {}
+local repeatButtons = {left=true, right=true}
+function buttonPress(button, ignore)
 	floorTicks = 0
-	lastInputs[button] = os.clock()
+	if not ignore then
+		lastInputs[button] = os.clock()
+	end
+	pressedKeys[button] = not ignore
 	buttonMappings[button]()
 	updateColors()
 end
 function inputCallback(event)
-	if (button == "left" or button == "right") then
-		if lastInputs[button] and lastInputs[button] > config.inputPollingSeconds then
-			buttonPress(button.."Repeat")
-		end
-	end
 	local button = buttonForEvent(event)
 	if not button then return end
-	if event.type == "InputEventType_Release" and button == "down" then
-		buttonPress("up")
-		return
-	elseif event.type ~= "InputEventType_FirstPress" then
-		if (button == "left" or button == "right") then
-			if lastInputs[button] and lastInputs[button] > config.inputPollingSeconds then
-				buttonPress(button.."Repeat")
-			end
+	if event.type == "InputEventType_Release" then
+		pressedKeys[button] = nil
+		if button == "down" then
+			buttonPress("up", true)
 		end
 		return
 	end
-	buttonPress(button)
+	buttonPress(button, event.type ~= "InputEventType_FirstPress")
 end
 
-function inputCallback(event)
-	if event.type == "InputEventType_Release" then
-		local button = buttonForEvent(event)
-		if not button then return end
-		if button == "down" then
-			buttonPress("up")
-		end
-		return
-	end
-	if event.type ~= "InputEventType_FirstPress" then
-		if event.type == "InputEventType_Repeat" then
-			local button = buttonForEvent(event)
-			if not button then return end
-			if button == "left" or button == "right" then
-				buttonMappings[button.."Repeat"]()
+function inputPolling(executionSeconds)
+	for button,_ in pairs(pressedKeys) do
+		if lastInputs[button] then
+			local secondsPressed = executionSeconds - lastInputs[button]
+			if repeatButtons[button] then
+				if secondsPressed > config.inputPollingSeconds then
+					buttonPress(button.."Repeat")
+				end
 			end
 		end
-		local button = buttonForEvent(event)
-		if button and (button == "left" or button == "right") then
-			if lastInputs[button] and lastInputs[button] > config.inputPollingSeconds then
-				buttonPress(button.."Repeat")
-			end
-		end
-		return
 	end
-	local button = buttonForEvent(event)
-	if not button then return end
-	buttonPress(button)
 end
 
 -- Update all grid actor quad colors
@@ -425,9 +404,11 @@ end
 
 -- Update function (Called all the time)
 local function everyFrame()
-	if not lastUpdateExecutionSeconds then lastUpdateExecutionSeconds=os.clock() end
-	secondsSinceLastMovement = secondsSinceLastMovement + os.clock() - lastUpdateExecutionSeconds
-	lastUpdateExecutionSeconds = os.clock()
+	local executionSeconds = os.clock()
+	if not lastUpdateExecutionSeconds then lastUpdateExecutionSeconds=executionSeconds end
+	secondsSinceLastMovement = secondsSinceLastMovement + executionSeconds - lastUpdateExecutionSeconds
+	lastUpdateExecutionSeconds = executionSeconds
+	inputPolling(executionSeconds)
 	if secondsSinceLastMovement > currentSpeed then
 		secondsSinceLastMovement = secondsSinceLastMovement - currentSpeed
 		makeGameTick()
