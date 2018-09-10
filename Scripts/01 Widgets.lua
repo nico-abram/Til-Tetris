@@ -58,6 +58,7 @@ Widg.defaults.rectangle = {
 	alpha = 1.0,
 	halign = 0.5,
 	valign = 0.5,
+	visible = true,
 }
 Widg.Rectangle = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.rectangle)
@@ -66,6 +67,7 @@ Widg.Rectangle = function(params)
 			InitCommand=function(self)
 				self:xy(params.x + params.width/2,params.y + params.height/2):zoomto(params.width,params.height):diffusealpha(params.alpha):halign(params.halign):valign(params.valign)
 				if params.onInit then params.onInit(self) end
+				self:visible(params.visible)
 			end;
 			OnCommand=function(self)
 				self:diffuse(params.color)
@@ -109,86 +111,6 @@ local function highlight(self)
 	self:queuecommand("Highlight")
 end
 
-Widg.defaults.button = {
-	x = 0,
-	y = 0,
-	width = 50,
-	height = 20,
-	bgColor = color("#990099FF"),
-	border = {
-		color = Color.Blue,
-		width = 2,
-	},
-	highlight = {
-		color=color("#BB00BBFF"),
-		alpha=1.0,
-	},
-	onClick = false,
-	onInit = false,
-	onHighlight = false,
-	onUnhighlight = false,
-	alpha = 1.0,
-	highlightAlpha = 1.0,
-	text = "Button",
-	font = {
-		scale = 0.5,
-		name = "Common Large",
-		color = Color.White,
-		padding = {
-			x = 10,
-			y = 10,
-		}
-	},
-	halign = 1,
-	valign = 1,
-}
-Widg.Button = function(params, data)
-	fillNilTableFieldsFrom(params, Widg.defaults.button)
-	params.highlight.color = checkColor(params.highlight.color)
-	params.bgColor = checkColor(params.bgColor)
-	params.font.color = checkColor(params.font.color)
-	params.border.color = checkColor(params.border.color)
-	local rect = Widg.Rectangle {
-		x = params.x,
-		y = params.y,
-		width = params.width,
-		height = params.height,
-		color = params.bgColor,
-		alpha = params.alpha,
-		onClick = params.onClick and function(s) params.onClick(s,data) end or false,
-		halign = params.halign,
-		valign = params.valign,
-	}
-	rect.HighlightCommand=function(self)
-		if isOver(self) then
-			if params.highlight.color then self:diffuse(params.highlight.color) end 
-			if params.highlight.alpha then self:diffusealpha(params.highlight.alpha) end 
-			if params.onHighlight then params.onHighlight(self, data) end
-		else
-			self:diffuse(params.bgColor):diffusealpha(params.alpha)
-			if params.onUnhighlight then params.onUnhighlight(self, data) end
-		end
-	end
-	local borders = Widg.Borders {
-		y = params.y+params.height*(0.5-params.valign),
-		x = params.x+params.width*(0.5-params.halign),
-		color = params.border.color,
-		width = params.width,
-		height = params.height,
-		borderWidth = params.border.width,
-		alpha = params.alpha,
-	}
-	return Def.ActorFrame {
-		InitCommand= function(self) 
-			self:SetUpdateFunction(highlight)
-			self.params = params 
-		end,
-		rect,
-		Widg.Label {x=params.x+params.width*(1-params.halign),y=params.y+params.height*(1-params.valign),scale=params.font.scale,halign=params.font.halign,text=params.text,width=params.width-params.font.padding.x},
-		borders
-	}
-end
-
 Widg.defaults.sprite = {
 	x = 0,
 	y = 0,
@@ -215,6 +137,116 @@ Widg.Sprite = function(params)
 	}
 	if params.texture then sprite.Texture = ResolveRelativePath(THEME:GetPathG("", params.texture), 3) end
 	return sprite
+end
+
+Widg.defaults.button = {
+	x = 0,
+	y = 0,
+	width = 50,
+	height = 20,
+	bgColor = color("#bb00bbFF"),
+	border = {
+		color = Color.Blue,
+		width = 2,
+	},
+	highlight = {
+		color=color("#dd00ddFF"),
+		alpha=1.0,
+	},
+	onClick = false,
+	onInit = false,
+	onHighlight = false,
+	onUnhighlight = false,
+	alpha = 1.0,
+	highlightAlpha = 1.0,
+	text = "Button",
+	font = {
+		scale = 0.5,
+		name = "Common Large",
+		color = Color.White,
+		padding = {
+			x = 10,
+			y = 10,
+		}
+	},
+	halign = 1,
+	valign = 1,
+	texture = false,
+}
+Widg.Button = function(params, data)
+	fillNilTableFieldsFrom(params, Widg.defaults.button)
+	params.highlight.color = checkColor(params.highlight.color)
+	params.bgColor = checkColor(params.bgColor)
+	params.font.color = checkColor(params.font.color)
+	params.border.color = checkColor(params.border.color)
+	local sprite = Def.ActorFrame { }
+	local spriteActor = nil
+	if params.texture then
+		sprite = Widg.Sprite {
+			x = params.x,
+			y = params.y,
+			texture="buttons/"..params.texture,
+			width = params.width,
+			height = params.height,
+			halign = params.halign-0.5,
+			valign = params.valign-0.5,
+			onInit = function(s) spriteActor = s end
+		}
+	end
+	local rect = Widg.Rectangle {
+		x = params.x,
+		y = params.y,
+		width = params.width,
+		height = params.height,
+		color = params.bgColor,
+		alpha = params.texture and 0 or params.alpha,
+		onClick = params.onClick and function(s) params.onClick(s,data) end or false,
+		halign = params.halign,
+		valign = params.valign,
+		visible = not params.texture,
+	}
+	if params.texture then
+		rect.HighlightCommand=function(self)
+			if isOver(self) then
+				if params.highlight.color then spriteActor:diffuse(params.highlight.color) end 
+				if params.highlight.alpha then spriteActor:diffusealpha(params.highlight.alpha) end 
+				if params.onHighlight then params.onHighlight(sprite, data) end
+			else
+				spriteActor:diffuse(params.bgColor):diffusealpha(params.alpha)
+				if params.onUnhighlight then params.onUnhighlight(sprite, data) end
+			end
+		end
+	else
+		rect.HighlightCommand=function(self)
+			if isOver(self) then
+				if params.highlight.color then self:diffuse(params.highlight.color) end 
+				if params.highlight.alpha then self:diffusealpha(params.highlight.alpha) end 
+				if params.onHighlight then params.onHighlight(self, data) end
+			else
+				self:diffuse(params.bgColor):diffusealpha(params.alpha)
+				if params.onUnhighlight then params.onUnhighlight(self, data) end
+			end
+		end
+	end
+	local borders = params.texture and Def.ActorFrame{} or Widg.Borders {
+		y = params.y+params.height*(0.5-params.valign),
+		x = params.x+params.width*(0.5-params.halign),
+		color = params.border.color,
+		width = params.width,
+		height = params.height,
+		borderWidth = params.border.width,
+		alpha = params.texture and 0 or params.alpha,
+	}
+	return Def.ActorFrame {
+		InitCommand= function(self) 
+			self:SetUpdateFunction(highlight)
+			self.params = params 
+		end,
+		rect,
+		sprite,
+		Widg.Label {x=params.x+params.width*(1-params.halign),y=params.y+params.height*(1-params.valign),scale=params.font.scale,halign=params.font.halign,text=params.text,width=params.width-params.font.padding.x},
+		borders,
+	}
 end
 
 Widg.defaults.container = {
