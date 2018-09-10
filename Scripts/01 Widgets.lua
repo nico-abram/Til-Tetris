@@ -195,6 +195,10 @@ Widg.defaults.sprite = {
 	color = false,
 	onInit = false,
 	texture = false,
+	valign = 0.5,
+	halign = 0.5,
+	width = 0,
+	height = 0,
 }
 Widg.Sprite = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.sprite)
@@ -203,8 +207,9 @@ Widg.Sprite = function(params)
 		_Level = 1,
 		Texture = path,
 		InitCommand = function(self)
-			self:xy(params.x,params.y)
+			self:xy(params.x,params.y):halign(params.halign):valign(params.valign)
 			if params.color then self:diffuse(params.color) end
+			if params.width>0 and params.height>0 then self:zoomto(params.width, params.height) end
 			if params.onInit then params.onInit(self) end
 		end
 	}

@@ -9,7 +9,6 @@
 	a rotation (Number 0-3) and an offset (How many cells it has fallen) number
 	inputCallback is the inputCallback function
 ]]
-
 --config
 local config = {
 	grid = {
@@ -27,7 +26,8 @@ local config = {
 			Z = color("#FF3333CC"),
 			S = color("#00ff00CC"),
 			O = color("#ffff00CC"),
-		}
+		},
+		texture="b25",
 	},
 	buttons = {
 		speedUp = "u",
@@ -41,7 +41,8 @@ local config = {
 		right = "right",
 		hold = "c",
 	},
-	bgColor = color("#333333CC"),
+	bgColor = color("#000000CC"),
+	emptyColor = color("#333333CC"),
 	normalSpeed = 0.5,
 	highSpeed = 0.025,
 	inputPollingSeconds = 0.25,
@@ -56,9 +57,28 @@ local config = {
 		x = SCREEN_WIDTH/2-220,
 		y = 50
 	},
-	drawGhostBlocks=true
+	drawGhostBlocks=true,
+	bgTexture = "back00"
 }
 
+local bgSprite = Widg.Sprite {x=SCREEN_WIDTH/2,y=SCREEN_HEIGHT/2,width=SCREEN_WIDTH,height=SCREEN_HEIGHT,texture = "bgs/"..config.bgTexture}
+local piecesSprite
+local piecesTexture
+local piecesTextureProperties = {}
+local pieceSprites
+if config.pieces.texture then
+	piecesSprite = Widg.Sprite {texture = "blockskin/"..config.pieces.texture}
+	piecesTextureProperties = {}
+	pieceSprites = Def.ActorFrame { piecesSprite }
+	piecesSprite.InitCommand = function(self)
+		piecesTexture = self:GetTexture()
+		self:visible(false)
+		for i=1,piecesTexture:GetNumFrames() do
+			local left,top,right,bottom = piecesTexture:GetTextureCoordRect(i)
+			piecesTextureProperties[#piecesTextureProperties+1] = {Frame= i-1, {left, bottom}, {right, top}}
+		end
+	end
+end
 -- Game globals
 local currentSpeed = config.normalSpeed
 local secondsSinceLastMovement = 0
@@ -70,25 +90,50 @@ setmetatable(drawGrid,{__index=grid} )
 local gridActor
 local heldAlready = false
 
-local pieceQueue = List.fromTable(shuffle(pieceNames))
+local pieceQueue = List.fromTable(shuffle(copyTable(pieceNames)))
 local currentPiece = { name="L", rotation=0, offset={x=0,y=0} }
 local holdPiece = nil
 
 --Tetris utility functions/tables, and game globals
 function paintQuad(quad, block) -- If color is nil then its background
-	local c = block and block.color or config.bgColor
+	local c = block and block.color or config.emptyColor
 	local w = Color.White
 	local b = Color.Black
-	local shine = block and colorSum(c,w,1/5,4/5) or config.bgColor
-	local shadow = block and colorSum(c,b,1/5,4/5) or config.bgColor
-	quad:diffuse(c)
-	quad:diffuselowerright(shine)
-	quad:diffuseupperleft(shadow)
-	quad:diffusealpha(block and block.alpha or 1.0)
+	local shine = block and colorSum(c,w,1/5,4/5) or config.emptyColor
+	local shadow = block and colorSum(c,b,1/5,4/5) or config.emptyColor
+	if block and block.name then 
+		if piecesTexture then
+			quad:SetWidth(config.grid.blockWidth-1)
+			quad:SetHeight(config.grid.blockHeight-1)
+			quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
+			if not quad.orig then quad.orig = quad:GetTexture() end
+			quad:SetTexture(piecesTexture)
+			quad:SetStateProperties(piecesTextureProperties)
+			quad:setstate(1+piecesNamesToIndex[block.name])
+			local c = block.ghost and colorSum(color("#FFFFFFFF"), config.emptyColor, 2/5, 3/5) or color("#FFFFFFFF")
+			quad:diffuse(c)
+			quad:diffuselowerright(c)
+			quad:diffuseupperleft(c)
+			quad:diffusealpha(1.0)
+			quad:SetWidth(config.grid.blockWidth-1)
+			quad:SetHeight(config.grid.blockHeight-1)
+			quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
+		else
+			quad:diffuse(c)
+			quad:diffuselowerright(shine)
+			quad:diffuseupperleft(shadow)
+			quad:diffusealpha(block and block.alpha or 1.0)
+		end
+	else
+		if quad.orig then quad:SetTexture(quad.orig) end 
+		quad:diffuse(config.emptyColor)
+		quad:diffusealpha(block and block.alpha or 1.0)
+		quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
+	end
 end
 
 function pushPieces()
-	local pieces = shuffle(pieceNames)
+	local pieces = shuffle(copyTable(pieceNames))
 	for k,v in pairs(pieces) do
 		List.pushright(pieceQueue, v)
 	end
@@ -304,7 +349,7 @@ function updateColors()
 				drawGrid[v.x] = {}
 				setmetatable(drawGrid[v.x], {__index=grid[v.x]})
 			end
-			drawGrid[v.x][v.y] = { color = pieceColor}
+			drawGrid[v.x][v.y] = {name=currentPiece.name, color = pieceColor}
 		end
 	end
 	setmetatable(drawGrid,{__index=grid} )
@@ -329,7 +374,7 @@ function updateColors()
 				setmetatable(ghostGrid[v.x], {__index=grid[v.x]})
 				setmetatable(drawGrid[v.x], {__index=ghostGrid[v.x]})
 			end
-			ghostGrid[v.x][v.y] = { color = colorSum(pieceColor,Color.White,1/5,4/5),alpha=0.5}
+			ghostGrid[v.x][v.y] = {ghost=true, name=currentPiece.name, color = colorSum(pieceColor,Color.White,1/5,4/5),alpha=0.5}
 		end
 		setmetatable(ghostGrid,{__index=grid} )
 		setmetatable(drawGrid,{__index=ghostGrid} )
@@ -382,7 +427,7 @@ function tickGravity()
 				v.x = v.x+1
 				v.y = v.y+1
 				if not grid[v.x] then grid[v.x] = {} end
-				grid[v.x][v.y] = {color=pieceColor}
+				grid[v.x][v.y] = {color=pieceColor, name=currentPiece.name}
 			end
 			popPiece()
 			checkFullLines()
@@ -425,6 +470,16 @@ gridActor = Def.ActorFrame{
 	end
 }
 
+local gridBg = Widg.Rectangle {
+	x = SCREEN_WIDTH/2,
+	y = SCREEN_HEIGHT/2,
+	color = config.bgColor,
+	width = config.grid.width*config.grid.blockWidth-1,
+	height = config.grid.height*config.grid.blockHeight-1,
+	halign = 1,
+	valign = 1,
+}
+
 for i=1,config.grid.width do
 	local index = #gridActor+1
 	gridActor[index] = Def.ActorFrame{ }
@@ -432,7 +487,7 @@ for i=1,config.grid.width do
 	for j=1,config.grid.height do
 		gridActor[index][#(gridActor[index])+1] = Def.Quad {
 			InitCommand=function(self)
-				self:xy(SCREEN_WIDTH/2+(i-1-math.floor(config.grid.width/2))*config.grid.blockWidth,(j-1-math.floor(config.grid.height/2))*config.grid.blockHeight+SCREEN_HEIGHT/2):zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1):halign(0):valign(0):diffuse(config.bgColor)
+				self:xy(SCREEN_WIDTH/2+(i-1-math.floor(config.grid.width/2))*config.grid.blockWidth,(j-1-math.floor(config.grid.height/2))*config.grid.blockHeight+SCREEN_HEIGHT/2):zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1):halign(0):valign(0):diffuse(config.emptyColor)
 			end,
 			RedrawQuadsMessageCommand = function(self)
 				paintQuad(self, drawGrid[i][j])
@@ -458,7 +513,15 @@ function quadGrid(f)
 	return container
 end
 
+local hintBgs = Def.ActorFrame { }
 for i=1,config.hints.num do
+	hintBgs[#hintBgs+1] = Widg.Rectangle {
+		x = config.hints.x+i*config.hints.xSpan+config.grid.blockWidth-1,
+		y = config.hints.y+i*config.hints.ySpan+config.grid.blockHeight-1,
+		width = config.grid.blockWidth*4,
+		height = config.grid.blockHeight*4,
+		color = config.bgColor
+	}
 	local quads = {}
 	local hintActor = quadGrid(
 		function(quad, j, k)
@@ -472,7 +535,8 @@ for i=1,config.hints.num do
 	)
 	hintActor.RedrawHintsMessageCommand = function(self)
 		local blocksToDraw = {}
-		local blocks= rotatePiece(blocksByPiece[pieceQueue[pieceQueue.first+(i-1)]], 0)
+		local pieceName = pieceQueue[pieceQueue.first+(i-1)]
+		local blocks= rotatePiece(blocksByPiece[pieceName], 0)
 		local color = config.pieces.colors[pieceQueue[pieceQueue.first+(i-1)]]
 		for i,v in ipairs(blocks) do
 			if not blocksToDraw[v.x+1] then blocksToDraw[v.x+1] = {} end
@@ -480,12 +544,21 @@ for i=1,config.hints.num do
 		end
 		for j=1,4 do
 			for k=1,4 do
-				paintQuad(quads[j][k], blocksToDraw[j] and blocksToDraw[j][k] and {color=color})
+				local block = {color=color,name=pieceName}
+				paintQuad(quads[j][k], blocksToDraw[j] and blocksToDraw[j][k] and block)
 			end
 		end
 	end
 	hintActors[#hintActors+1] = hintActor
 end
+
+local holdBg = Widg.Rectangle {
+	x = config.holdPiece.x+config.grid.blockWidth,
+	y = config.holdPiece.y+config.grid.blockHeight,
+	width = config.grid.blockWidth*4-1,
+	height = 4*config.grid.blockHeight-1,
+	color = config.bgColor,
+}
 
 local holdPieceQuads = {}
 local holdPieceGrid = quadGrid(
@@ -500,7 +573,7 @@ local holdPieceGrid = quadGrid(
 )
 holdPieceGrid.RedrawHoldPieceMessageCommand = function(self)
 	local blocksToDraw = {}
-	local color = holdPiece and config.pieces.colors[holdPiece] or config.bgColor
+	local color = holdPiece and config.pieces.colors[holdPiece] or config.emptyColor
 	if holdPiece then
 		local blocks= rotatePiece(blocksByPiece[holdPiece], 0)
 		for i,v in ipairs(blocks) do
@@ -510,7 +583,8 @@ holdPieceGrid.RedrawHoldPieceMessageCommand = function(self)
 	end
 	for j=1,4 do
 		for k=1,4 do
-			paintQuad(holdPieceQuads[j][k], holdPiece and blocksToDraw[j] and blocksToDraw[j][k] and {color=color})
+			local block = {color=color,name=holdPiece}
+			paintQuad(holdPieceQuads[j][k], holdPiece and blocksToDraw[j] and blocksToDraw[j][k] and block)
 		end
 	end
 end
@@ -525,4 +599,4 @@ local menu = Widg.Container {
 	}
 }
 
-return Def.ActorFrame {gridActor, hintActors, holdPieceGrid, menu}
+return Def.ActorFrame {bgSprite, gridBg, gridActor, hintBgs, hintActors, holdBg, holdPieceGrid, menu, pieceSprites}

@@ -1,9 +1,7 @@
 function changeScreen(screen)
-	if SCREENMAN:GetTopScreen():GetName() ~= screen and SCREENMAN then
-		local topScreen = SCREENMAN:GetTopScreen()
-		if topScreen then
-			topScreen:SetNextScreenName(screen):StartTransitioningScreen("SM_GoToNextScreen") 
-		end
+	local topScreen = SCREENMAN:GetTopScreen()
+	if topScreen then
+		topScreen:SetNextScreenName(screen):StartTransitioningScreen("SM_GoToNextScreen") 
 	end
 end
 
