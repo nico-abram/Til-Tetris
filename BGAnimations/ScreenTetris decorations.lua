@@ -27,7 +27,7 @@ local config = {
 			S = color("#00ff00CC"),
 			O = color("#ffff00CC"),
 		},
-		texture="b25",
+		texture="b26",
 	},
 	buttons = {
 		speedUp = "u",
@@ -75,7 +75,7 @@ if config.pieces.texture then
 		self:visible(false)
 		for i=1,piecesTexture:GetNumFrames() do
 			local left,top,right,bottom = piecesTexture:GetTextureCoordRect(i)
-			piecesTextureProperties[#piecesTextureProperties+1] = {Frame= i-1, {left, bottom}, {right, top}}
+			piecesTextureProperties[#piecesTextureProperties+1] = {Frame= i-1}
 		end
 	end
 end
@@ -103,8 +103,6 @@ function paintQuad(quad, block) -- If color is nil then its background
 	local shadow = block and colorSum(c,b,1/5,4/5) or config.emptyColor
 	if block and block.name then 
 		if piecesTexture then
-			quad:SetWidth(config.grid.blockWidth-1)
-			quad:SetHeight(config.grid.blockHeight-1)
 			quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
 			if not quad.orig then quad.orig = quad:GetTexture() end
 			quad:SetTexture(piecesTexture)
@@ -115,9 +113,6 @@ function paintQuad(quad, block) -- If color is nil then its background
 			quad:diffuselowerright(c)
 			quad:diffuseupperleft(c)
 			quad:diffusealpha(1.0)
-			quad:SetWidth(config.grid.blockWidth-1)
-			quad:SetHeight(config.grid.blockHeight-1)
-			quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
 		else
 			quad:diffuse(c)
 			quad:diffuselowerright(shine)
@@ -128,8 +123,8 @@ function paintQuad(quad, block) -- If color is nil then its background
 		if quad.orig then quad:SetTexture(quad.orig) end 
 		quad:diffuse(config.emptyColor)
 		quad:diffusealpha(block and block.alpha or 1.0)
-		quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
 	end
+	quad:zoomto(config.grid.blockWidth-1,config.grid.blockHeight-1)
 end
 
 function pushPieces()
