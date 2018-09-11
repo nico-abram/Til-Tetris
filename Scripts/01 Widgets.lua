@@ -121,6 +121,7 @@ Widg.defaults.sprite = {
 	halign = 0.5,
 	width = 0,
 	height = 0,
+	color = false,
 }
 Widg.Sprite = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.sprite)
@@ -151,14 +152,13 @@ Widg.defaults.button = {
 	},
 	highlight = {
 		color=color("#dd00ddFF"),
-		alpha=1.0,
+		alpha=false,
 	},
 	onClick = false,
 	onInit = false,
 	onHighlight = false,
 	onUnhighlight = false,
 	alpha = 1.0,
-	highlightAlpha = 1.0,
 	text = "Button",
 	font = {
 		scale = 0.5,
@@ -184,6 +184,7 @@ Widg.Button = function(params, data)
 	if params.texture then
 		sprite = Widg.Sprite {
 			x = params.x,
+			color = params.bgColor,
 			y = params.y,
 			texture="buttons/"..params.texture,
 			width = params.width,
@@ -205,27 +206,15 @@ Widg.Button = function(params, data)
 		valign = params.valign,
 		visible = not params.texture,
 	}
-	if params.texture then
-		rect.HighlightCommand=function(self)
-			if isOver(self) then
-				if params.highlight.color then spriteActor:diffuse(params.highlight.color) end 
-				if params.highlight.alpha then spriteActor:diffusealpha(params.highlight.alpha) end 
-				if params.onHighlight then params.onHighlight(sprite, data) end
-			else
-				spriteActor:diffuse(params.bgColor):diffusealpha(params.alpha)
-				if params.onUnhighlight then params.onUnhighlight(sprite, data) end
-			end
-		end
-	else
-		rect.HighlightCommand=function(self)
-			if isOver(self) then
-				if params.highlight.color then self:diffuse(params.highlight.color) end 
-				if params.highlight.alpha then self:diffusealpha(params.highlight.alpha) end 
-				if params.onHighlight then params.onHighlight(self, data) end
-			else
-				self:diffuse(params.bgColor):diffusealpha(params.alpha)
-				if params.onUnhighlight then params.onUnhighlight(self, data) end
-			end
+	rect.HighlightCommand=function(self)
+		local mainActor = params.texture and spriteActor or self
+		if isOver(self) then
+			if params.highlight.color then mainActor:diffuse(params.highlight.color) end 
+			mainActor:diffusealpha(params.highlight.alpha or params.alpha or 1)
+			if params.onHighlight then params.onHighlight(mainActor, data) end
+		else
+			mainActor:diffuse(params.bgColor):diffusealpha(params.alpha)
+			if params.onUnhighlight then params.onUnhighlight(mainActor, data) end
 		end
 	end
 	local borders = params.texture and Def.ActorFrame{} or Widg.Borders {
