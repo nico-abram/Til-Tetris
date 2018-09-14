@@ -10,4 +10,5 @@ local container = Widg.Container {
 		Widg.Button {width=200,height=40,text="Start Game", onClick=screenChange("ScreenTetris")},
 	}
 }
+
 return Def.ActorFrame { container }

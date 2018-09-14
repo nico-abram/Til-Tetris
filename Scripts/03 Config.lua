@@ -4,7 +4,7 @@ config = {
 		height = 20,
 		width = 10,
 		blockWidth = 20,
-		blockHeight = 20,
+		blockHeight = 20
 	},
 	pieces = {
 		colors = {
@@ -14,9 +14,9 @@ config = {
 			T = color("#800080CC"),
 			Z = color("#FF3333CC"),
 			S = color("#00ff00CC"),
-			O = color("#ffff00CC"),
+			O = color("#ffff00CC")
 		},
-		texture="b26",
+		texture = "b26"
 	},
 	buttons = {
 		speedUp = "u",
@@ -28,7 +28,7 @@ config = {
 		up = "up",
 		left = "left",
 		right = "right",
-		hold = "c",
+		hold = "c"
 	},
 	bgColor = color("#000000CC"),
 	emptyColor = color("#333333CC"),
@@ -37,15 +37,15 @@ config = {
 	inputPollingSeconds = 0.25,
 	hints = {
 		num = 5,
-		x = SCREEN_WIDTH/2+100,
+		x = SCREEN_WIDTH / 2 + 100,
 		y = -90,
 		xSpan = 0,
-		ySpan = 90,
+		ySpan = 90
 	},
 	holdPiece = {
-		x = SCREEN_WIDTH/2-220,
+		x = SCREEN_WIDTH / 2 - 220,
 		y = 50
 	},
-	drawGhostBlocks=true,
+	drawGhostBlocks = true,
 	bgTexture = "back00"
 }
