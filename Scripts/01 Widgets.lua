@@ -410,15 +410,15 @@ Widg.defaults.sliderBase = {
 	bindToTable = {} -- Since tables are passed by reference, update t.value with the slider value.
 	-- If range, value = {start=number, end=number}
 }
-local function getValueforAxis(mpos, pos, len, align, valuecount)
-	return (mpos - pos + len / 2 + len * align) / (len / valuecount)
+local function getRatioforAxis(mpos, pos, len, align)
+	return mpos - (pos + len * align)
 end
 local function getValue(mouse, params)
-	local length = (params.max - params.min) / params.step
-	local value =
-		params.vertical and getvalueForAxis(mouse.y, params.y, params.height, params.valign, length) or
-		getvalueForAxis(mouse.x, params.x, params.width, params.halign, length)
-	return value * params.step + params.min
+	local length = (params.max - params.min)
+	local ratio =
+		params.vertical and getRatioforAxis(mouse.y, params.y, params.height, params.valign) or
+		getvalueForAxis(mouse.x, params.x, params.width, params.halign)
+	return math.round((ratio * length + params.min) / params.step) * params.step
 end
 Widg.SliderBase = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.sliderBase)
