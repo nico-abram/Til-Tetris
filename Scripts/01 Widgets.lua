@@ -17,7 +17,6 @@ function checkColor(c)
 		if string.len(c) < 9 then
 			c = c .. string.rep("F", 9 - string.len(c))
 		end
-		SCREENMAN:SystemMessage(c)
 		return color(c)
 	end
 	return c
@@ -70,7 +69,9 @@ Widg.defaults.rectangle = {
 Widg.Rectangle = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.rectangle)
 	params.color = checkColor(params.color)
-	return Def.Quad {
+	local q
+	q =
+		Def.Quad {
 		InitCommand = function(self)
 			self:xy(params.x + params.width / 2, params.y + params.height / 2):zoomto(params.width, params.height):diffusealpha(
 				params.alpha
@@ -79,6 +80,7 @@ Widg.Rectangle = function(params)
 				params.onInit(self)
 			end
 			self:visible(params.visible)
+			q.actor = self
 		end,
 		OnCommand = function(self)
 			self:diffuse(params.color)
@@ -89,6 +91,7 @@ Widg.Rectangle = function(params)
 				end
 			end or nil
 	}
+	return q
 end
 
 Widg.defaults.borders = {
@@ -387,17 +390,28 @@ Widg.Scrollable = function(params)
 	scrollable.content = content
 	return scrollable
 end
-
+local function basicHandle(params)
+	local h = Widg.Rectangle {color = "00FF00", width = params.width / 5, height = params.height}
+	h.onValueChange = function(val)
+		output(val)
+		h.actor:x(val * params.width / (params.max - params.min))
+	end
+	return h
+end
+local function basicBar(params)
+	return Widg.Rectangle {color = "FF0000", width = params.width, height = params.height}
+end
 Widg.defaults.sliderBase = {
 	x = 0,
 	y = 0,
 	width = 100,
 	height = 30,
 	onClick = false,
+	color = color("#FFFFFFFF"),
 	onValueChangeEnd = false,
 	onValueChange = false,
-	handle = {},
-	bar = {},
+	handle = basicHandle,
+	bar = basicBar,
 	onInit = false,
 	defaultValue = 10,
 	max = 100,
@@ -411,17 +425,18 @@ Widg.defaults.sliderBase = {
 	-- If range, value = {start=number, end=number}
 }
 local function getRatioforAxis(mpos, pos, len, align)
-	return mpos - (pos + len * align)
+	return (mpos - (pos + len * (align - 0.5))) / 100
 end
 local function getValue(mouse, params)
 	local length = (params.max - params.min)
 	local ratio =
 		params.vertical and getRatioforAxis(mouse.y, params.y, params.height, params.valign) or
-		getvalueForAxis(mouse.x, params.x, params.width, params.halign)
+		getRatioforAxis(mouse.x, params.x, params.width, params.halign)
 	return math.round((ratio * length + params.min) / params.step) * params.step
 end
 Widg.SliderBase = function(params)
 	fillNilTableFieldsFrom(params, Widg.defaults.sliderBase)
+	params.color = checkColor(params.color)
 	local updateFunction
 	local container =
 		Widg.Container {
@@ -429,7 +444,9 @@ Widg.SliderBase = function(params)
 		y = params.y,
 		onInit = function(container)
 			container:SetUpdateFunction(updateFunction)
-			params.onInit(container)
+			if params.onInit then
+				params.onInit(container)
+			end
 		end
 	}
 	if params.range and type(params.defaultValue) ~= "table" then
@@ -439,8 +456,9 @@ Widg.SliderBase = function(params)
 	local handle = params.handle(params)
 	local t = params.bindToTable
 	t.value = defaultValue
-	container.add(var)
-	container.add(handle)
+	container.value = t.value
+	container:add(bar)
+	container:add(handle)
 	local clicked = false
 	local rectangle =
 		Widg.Rectangle {
@@ -453,22 +471,35 @@ Widg.SliderBase = function(params)
 		end,
 		visible = false
 	}
-	container.add(rectangle)
+	container:add(rectangle)
 	updateFunction = function(container)
 		if clicked then
-			if isOver(rectangle) and INPUTFILTER:IsBeingPressed("Mouse 0", "Mouse") then
+			if isOver(rectangle.actor) and INPUTFILTER:IsBeingPressed("Mouse 0", "Mouse") then
 				local mouse = getMousePosition()
 				t.value = getValue(mouse, params)
-				params.onValueChange(t.value)
-				handle.onValueChange(t.value)
-				bar.onValueChange(t.value)
+				container.value = t.value
+				if params.onValueChange then
+					params.onValueChange(t.value)
+				end
+				if handle.onValueChange then
+					handle.onValueChange(t.value)
+				end
+				if bar.onValueChange then
+					bar.onValueChange(t.value)
+				end
 			else
 				clicked = false
-				params.onValueChangeEnd(t.value)
-				handle.onValueChangeEnd(t.value)
-				bar.onValueChangeEnd(t.value)
+				if params.onValueChangeEnd then
+					params.onValueChangeEnd(t.value)
+				end
+				if bar.onValueChange then
+					bar.onValueChange(t.value)
+				end
+				if bar.onValueChangeEnd then
+					bar.onValueChangeEnd(t.value)
+				end
 			end
 		end
 	end
-	return container, t
+	return container
 end
