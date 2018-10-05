@@ -503,3 +503,132 @@ Widg.SliderBase = function(params)
 	end
 	return container
 end
+
+Widg.defaults.Table = {
+	x = 0,
+	y = 0,
+	rowheight = 25,
+	ygap = 2, -- between rows
+	numitems = 15, -- to display
+	index = 0,
+	hpadding = 5,
+	vpadding = 5,
+	width = SCREEN_WIDTH * 0.6,
+	height = false,
+	columns = {
+		width = 100,
+		title= {
+			header = function(title, columnParams, tableParams) end,
+			item = {
+				create = function(index, item, columnParams, tableParams) end,
+				update = function(createdActor, item) end
+			}
+		}
+	},
+	onInit = false
+}
+function Widg.Table(params)
+	fillNilTableFieldsFrom(params, Widg.defaults.Table)
+	if not params.height then
+		params.height = (params.numitems + 2) * params.realrowheight
+	end
+	if not params.rowheight then
+		params.rowheight = 42 * params.tzoom
+	end
+	params.usablewidth = params.width - params.hpading * 2
+	params.realrowheight = params.rowheight + params.ygap
+	local packlist
+	local packtable
+	local table =
+		Widg.Container {
+		x = params.x,
+		y = params.y,
+		onInit = params.onInit
+	}
+	local input = function(even)
+		if event.type == "InputEventType_FirstPress" then
+			if event.DeviceInput.button == "DeviceButton_mousewheel down" then
+				params.index = math.min(params.index + 1, #(params.items) - (#(params.items)%params.numitems))
+				table:Refresh()
+			elseif event.DeviceInput.button == "DeviceButton_mousewheel up" then
+				params.index = math.min(0, params.index - 1)
+				table:Refresh()
+			end
+		end
+	end
+	table.BeginCommand = function(self)
+		SCREENMAN:GetTopScreen():AddInputCallback(input)
+	end
+	local usedwidth = 0
+	local noWidthColumnCount = 0
+	for k, v in pairs(params.columns) do
+		if not v.width then
+			noWidthColumnCount = noWidthColumnCount + 1
+		else
+			usedwidth = usedwidth + v.width
+		end
+	end
+	for k, v in pairs(params.columns) do
+		if not v.width then
+			v.width = (params.usablewidth - usedwidth) / noWidthColumnCount
+		end
+	end
+	local currentItemX = params.hpadding
+	for k, v in pairs(params.columns) do
+		local builder = params.header
+		if type(v) == "table" and v.builder then
+			builder = v.header
+		end
+		currentItemX = currentItemX + v.width + 2
+		table[#table + 1] =
+			Widg.Container {
+			content = builder(k, v, params),
+			x = currentItemX,
+			y = vpadding
+		}
+		currentItemX = currentItemX + v.width + 2
+	end
+	currentItemX = params.hpadding
+	local itemActors = {}
+	for i = 1, params.numitems do
+		if not itemActors[i] then
+			itemActors[i] = {}
+		end
+		for ck, cv in pairs(params.columns) do
+			local builder
+			if type(cv) == "table" and cv.item and cv.item.create then
+				builder = cv.item.create
+			else
+				builder = cv.create
+			end
+			currentItemX = currentItemX + cv.width + 2
+			local def = builder(i, params.items[i], cv, params)
+			def.InitCommand = function(self)
+				itemActors[i][k] = self
+			end
+			table[#table + 1] =
+				Widg.Container {
+				content = def,
+				x = currentItemX,
+				y = realrowheight * i + vpadding
+			}
+			currentItemX = currentItemX + cv.width + 2
+		end
+	end
+	table.Refresh = function(t)
+		for i, v in pairs(itemActors) do
+			for k, v in pairs(v) do
+				params.columns[k].item.update(v, params.items[i + params.index])
+			end
+		end
+	end
+	table.Reload = function(t)
+		params.index = 0
+		t:Refresh()
+	end
+	table.Sort = function(t, sorter)
+		table.sort(params.items, sorter)
+		t:Reload()
+	end
+	return table
+end
