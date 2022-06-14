@@ -19,9 +19,11 @@ local container =
 
 return Def.ActorFrame {
 	container,
+--[[
 	Widg.SliderBase {
 		x = SCREEN_WIDTH / 4,
 		y = SCREEN_HEIGHT / 2,
 		step = 0.1
 	}
+--]]--
 }

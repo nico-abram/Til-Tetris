@@ -1,7 +1,7 @@
 Widg = {}
 Widg.defaults = {}
 
-function fillNilTableFieldsFrom(table1, defaultTable)
+local function fillNilTableFieldsFrom(table1, defaultTable)
 	for key, value in pairs(defaultTable) do
 		if table1[key] == nil then
 			table1[key] = defaultTable[key]
@@ -9,7 +9,7 @@ function fillNilTableFieldsFrom(table1, defaultTable)
 	end
 end
 
-function checkColor(c)
+local function checkColor(c)
 	if type(c) == "string" then
 		if string.sub(c, 1, 1) ~= "#" then
 			c = "#" .. c
@@ -20,6 +20,23 @@ function checkColor(c)
 		return color(c)
 	end
 	return c
+end
+
+local function isOver(element)
+	local x = element:GetTrueX()
+	local y = element:GetTrueY()
+	local hAlign = element:GetHAlign()
+	local vAlign = element:GetVAlign()
+	local w = element:GetZoomedWidth()
+	local h = element:GetZoomedHeight()
+
+	local mouseX = INPUTFILTER:GetMouseX()
+	local mouseY = INPUTFILTER:GetMouseY()
+
+	local withinX = (mouseX >= (x - (hAlign * w))) and (mouseX <= ((x + w) - (hAlign * w)))
+	local withinY = (mouseY >= (y - (vAlign * h))) and (mouseY <= ((y + h) - (vAlign * h)))
+
+	return (withinX and withinY)
 end
 
 Widg.defaults.label = {
@@ -254,7 +271,7 @@ Widg.Button = function(params)
 	}
 	rect.HighlightCommand = function(self)
 		local mainActor = params.texture and spriteActor or self
-		if isOver(self) then
+		if isOver(mainActor) then
 			if params.highlight.color then
 				mainActor:diffuse(params.highlight.color)
 			end
